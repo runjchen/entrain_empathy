@@ -1,24 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-
-# # Dependencies
-
-# In[ ]:
-
-
-# !pip install transformers
-
-
-# In[ ]:
-
-
-# !pip install datasets
-# !pip install nlp
-
-
-# In[2]:
-
-
 import pandas as pd
 import numpy as np
 import re
@@ -29,23 +10,9 @@ from nlp import Dataset
 
 # # Load Training Data - EmpatheticDialogues
 
-# In[ ]:
-
-
-# !wget https://dl.fbaipublicfiles.com/parlai/empatheticdialogues/empatheticdialogues.tar.gz
-# !tar -xf empatheticdialogues.tar.gz
-
-
-# In[3]:
-
-
 TRAIN_PATH = 'empatheticdialogues/train.csv'
 VAL_PATH = 'empatheticdialogues/valid.csv'
 TEST_PATH = 'empatheticdialogues/test.csv'
-
-
-# In[4]:
-
 
 def load_data(path):
   '''dataframe from data path'''
@@ -58,14 +25,7 @@ def load_data(path):
 
   return df
 
-# df = load_data(TRAIN_PATH)
-# print(df.head(5))
 
-
-# In[5]:
-
-
-# df = load_data(TRAIN_PATH)
 def get_context_sent(df):
   contexts = []
   sentences = []
@@ -83,30 +43,14 @@ def get_context_sent(df):
   return pd.DataFrame(zip(contexts, sentences), columns=['contexts', 'sentences'])
   
 
-# df_i
-# df_i['utterance'].tolist()
-# print(len(get_context_sent(df)))
-
-
-# In[6]:
-
-
 train_data = get_context_sent(load_data(TRAIN_PATH))
 val_data = get_context_sent(load_data(VAL_PATH))
 test_data = get_context_sent(load_data(TEST_PATH))
 print(len(train_data), len(val_data), len(test_data))
 
 
-# In[7]:
-
-
-train_data
-
 
 # # BERT2GPT2
-
-# In[8]:
-
 
 from transformers import BertTokenizer, GPT2Tokenizer, EncoderDecoderModel, Trainer, TrainingArguments
 
@@ -141,8 +85,6 @@ model.length_penalty = 2.0
 model.num_beams = 4
 
 
-# In[9]:
-
 
 encoder_length = 512
 decoder_length = 128
@@ -171,9 +113,6 @@ def map_to_encoder_decoder_inputs(batch):
 
 # ## Evaluation
 
-# In[10]:
-
-
 from datasets import load_metric
 bleu_metric = load_metric('bleu')
 
@@ -193,9 +132,6 @@ def compute_metrics(pred):
 
 
 # # Tokenize Data
-
-# In[13]:
-
 
 # make train dataset ready
 dataset = Dataset.from_pandas(train_data)
@@ -217,9 +153,6 @@ val_dataset.set_format(
 
 
 # # Training
-
-# In[14]:
-
 
 training_args = TrainingArguments(
     output_dir="./",
@@ -251,22 +184,12 @@ trainer = Trainer(
 trainer.train()
 
 
-# In[ ]:
-
-
 torch.save(model)
 
 
 # # Test
 
-# In[12]:
-
-
 model.to("cuda")
-
-
-# In[13]:
-
 
 def generate_summary(batch):
     # Tokenizer will automatically set [BOS] <text> [EOS]
@@ -287,60 +210,12 @@ def generate_summary(batch):
 test_dataset = Dataset.from_pandas(test_data)
 results = test_dataset.map(generate_summary, batched=True, batch_size=batch_size, remove_columns=["contexts"])
 
-# load rouge for validation
-# rouge = nlp.load_metric("rouge")
-
 pred_str = results["pred"]
 label_str = results["sentences"]
 
-# rouge_output = rouge.compute(predictions=pred_str, references=label_str, rouge_types=["rouge2"])["rouge2"].mid
 score = bleu_metric.compute(predictions=pred_str, 
                               references=[[s] for s in label_str],)
 print(score['bleu'])
-
-
-# In[24]:
-
-
-pred_str
-
-
-# In[29]:
-
-
-from nltk.tokenize import TweetTokenizer
-
-tk = TweetTokenizer()
-
-pred_str = results["pred"]
-label_str = results["sentences"]
-
-# rouge_output = rouge.compute(predictions=pred_str, references=label_str, rouge_types=["rouge2"])["rouge2"].mid
-score = bleu_metric.compute(predictions=[tk.tokenize(s.strip()) for s in pred_str], 
-                              references=[[tk.tokenize(s.strip())] for s in label_str],)
-print(score['bleu'])
-
-
-# In[21]:
-
-
-for s in results["sentences"]:
-    print([s])
-
-
-# In[18]:
-
-
-results["pred"]
-
-
-# In[23]:
-
-
-[[s] for s in label_str]
-
-
-# In[ ]:
 
 
 
